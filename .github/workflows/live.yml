@@ -1,0 +1,60 @@
+name: live-recorder
+
+# Two overlapping jobs cover the session (one job may run at most 6 hours):
+#   A  starts ~08:30 IST (03:00 UTC), records until 14:15 IST
+#   B  starts ~14:00 IST (08:30 UTC), records until 15:45 IST
+# GitHub can start scheduled jobs late, so A starts early and waits for 09:00 itself.
+on:
+  schedule:
+    - cron: '0 3 * * 1-5'
+    - cron: '30 8 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'check = only verify the morning token works; record = run the recorder now'
+        default: 'check'
+        type: choice
+        options: [check, record]
+      tag:
+        description: 'tag for a manual record run'
+        default: 'M'
+      end:
+        description: 'stop time HH:MM IST for a manual record run'
+        default: '15:45'
+
+concurrency:
+  group: live-${{ github.event.schedule || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 358
+    env:
+      ZERODHA_API_KEY: ${{ secrets.ZERODHA_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_REPO: ${{ secrets.HF_REPO }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TOKEN_FROM_HF: '1'
+      TZ: Asia/Kolkata
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Universe (stock list)
+        if: github.event.inputs.mode != 'check'
+        run: python collect.py universe
+      - name: Check token
+        if: github.event.inputs.mode == 'check'
+        run: python collect.py check
+      - name: Record live market
+        if: github.event.inputs.mode != 'check'
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 3 * * 1-5" ]; then TAG=A; END=14:15
+          elif [ "${{ github.event.schedule }}" = "30 8 * * 1-5" ]; then TAG=B; END=15:45
+          else TAG="${{ github.event.inputs.tag }}"; END="${{ github.event.inputs.end }}"; fi
+          python collect.py live --tag "$TAG" --end "$END" --upload

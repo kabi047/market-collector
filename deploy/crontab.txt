@@ -1,0 +1,9 @@
+# Market data collector schedule (server timezone must be Asia/Kolkata - setup_server.sh sets it).
+# m  h  dom mon dow  command
+25 8  *   *   1-5  cd __DIR__ && venv/bin/python collect.py login --auto            >> state/logs/cron.log 2>&1
+35 8  *   *   1    cd __DIR__ && venv/bin/python collect.py universe --auto         >> state/logs/cron.log 2>&1
+45 8  *   *   1-5  cd __DIR__ && flock -n /tmp/mdc_live.lock venv/bin/python collect.py live --auto >> state/logs/cron.log 2>&1
+0  16 *   *   1-5  cd __DIR__ && flock -n /tmp/mdc_eod.lock venv/bin/python collect.py eod --auto   >> state/logs/cron.log 2>&1
+0  7  *   *   *    cd __DIR__ && venv/bin/python collect.py news                    >> state/logs/cron.log 2>&1
+0  19 *   *   *    cd __DIR__ && venv/bin/python collect.py news                    >> state/logs/cron.log 2>&1
+0  10 *   *   6    cd __DIR__ && venv/bin/python collect.py fundamentals            >> state/logs/cron.log 2>&1

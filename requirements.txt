@@ -1,0 +1,8 @@
+kiteconnect>=5.0
+pandas>=2.2
+pyarrow>=15
+python-dotenv
+requests
+pyotp
+yfinance>=0.2.50
+huggingface_hub
