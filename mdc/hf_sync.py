@@ -50,3 +50,13 @@ def push_token():
 def pull_token():
     from .kite_auth import TOKEN_FILE
     return download("state/access_token.json", TOKEN_FILE)
+
+
+def pull_data(days=None):
+    """Download live-data chunks recorded in the cloud into the local data folder (resumes; skips existing files)."""
+    from huggingface_hub import snapshot_download
+    pats = [f"data/*/zerodha_live/{d}/*" for d in days] if days else ["data/*"]
+    p = snapshot_download(repo_id=C.HF_REPO, repo_type="dataset", token=C.HF_TOKEN, allow_patterns=pats,
+                          local_dir=str(C.DATA.parent))
+    log.info("cloud data synced into %s", C.DATA)
+    return p

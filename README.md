@@ -78,6 +78,31 @@ scp -i key.pem -r ubuntu@<IP>:~/collector/data/* "E:\Claude Stocks\data\"
 ```
 Live ticks are roughly **0.5–1 GB per trading day**. This is an estimate, so check `du -sh data` after the first day. Pull and clear old live days before the 200 GB disk fills up.
 
+## 2b. No credit card? Free cloud via GitHub Actions (what we use)
+Repo: github.com/kabi047/market-collector (code only; credentials are in GitHub Secrets, data goes to a private Hugging Face dataset).
+
+**Every trading morning, once (about 07:00, any time before 08:30):** on your PC run
+```
+venv\Scripts\python collect.py login
+```
+It logs you in and sends the day's access token to the cloud automatically. You can then switch your PC off.
+
+Then GitHub does the rest on its own servers:
+- **~08:30:** job A starts, waits for 09:00 and records until 14:15.
+- **~14:00:** job B starts and records until 15:45.
+- Every 30 minutes each job uploads a chunk to the private dataset, so a crash loses at most 30 minutes.
+- On a market holiday it notices there are no ticks and stops.
+
+**Get the data on your PC later (needs internet):**
+```
+venv\Scripts\python collect.py pull-live
+venv\Scripts\python collect.py eod        # evening: minute candles + OI for today's futures/options contracts
+```
+Data lands in `data/<stock|index|futures|options>/zerodha_live/<date>/` as chunk files (`A_0930.parquet` etc). The A and B jobs overlap by about 15 minutes, so drop duplicate rows by (symbol, exch_ts, volume) when you load.
+
+**Manual test any time:** GitHub -> Actions -> live-recorder -> Run workflow -> mode `check`.
+If you forget the morning login, the job stops with "token is stale" and that day's live data is lost.
+
 ## 3. Notes and limits
 - **Live feed rate:** Zerodha's websocket sends snapshots, up to about 1 per second per instrument when something changes. It is not every exchange trade. This is the fastest data Kite Connect offers. Depth is 5 levels.
 - **Rate limits:** historical calls are capped at 3 per second, and the downloader stays under that. Each minute request covers at most 60 days.

@@ -7,6 +7,7 @@
   python collect.py eod                     after the close: today's F&O minute candles + historical top-up
   python collect.py fundamentals            financials, filings, results, shareholding, annual reports
   python collect.py news                    company + market news
+  python collect.py pull-live               download live data the cloud recorded (needs internet)
   python collect.py check                   verify the stored/pulled token works
   python collect.py status                  what has been collected so far
 
@@ -34,6 +35,7 @@ def main():
     p.add_argument("--tag", default="", help="label for this run, e.g. A or B (cloud jobs)")
     p.add_argument("--upload", action="store_true", help="send 30-minute chunks to Hugging Face (cloud mode)")
     sub.add_parser("check")
+    p = sub.add_parser("pull-live"); p.add_argument("--days", nargs="+", help="e.g. 2026-10-26 (default: everything)")
     p = sub.add_parser("eod"); p.add_argument("--auto", action="store_true")
     p = sub.add_parser("fundamentals")
     p.add_argument("--symbols", nargs="+")
@@ -86,6 +88,9 @@ def main():
         elif a.cmd == "news":
             from mdc import news
             news.run(a.symbols)
+        elif a.cmd == "pull-live":
+            from mdc import hf_sync
+            hf_sync.pull_data(a.days)
         elif a.cmd == "check":
             from mdc import kite_auth
             kite, _ = kite_auth.get_kite()
