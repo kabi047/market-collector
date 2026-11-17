@@ -33,4 +33,29 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python collect.py cloud-login
+      - name: Refresh scheduled session
+        if: github.event_name != 'workflow_dispatch'
+        run: python collect.py cloud-login
+      - name: Test fresh unattended login
+        if: github.event_name == 'workflow_dispatch'
+        run: python collect.py cloud-login --force
+      - name: Verify cloud quotes and Nifty 50 coverage
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'PY'
+          import json
+          from mdc import kite_auth, universe, hf_sync, config as C
+          kite, _ = kite_auth.get_kite()
+          u = universe.build(kite)
+          stocks = [s for s in u['stocks'] if s['list'] == 'nifty50']
+          assert len(stocks) == 50, 'Incomplete Nifty 50 coverage'
+          quotes = kite.quote(['NSE:' + s['symbol'] for s in stocks])
+          assert len(quotes) == 50, 'Missing company quotes'
+          assert all(len(q.get('depth', {}).get(side, [])) == 5
+                     for q in quotes.values() for side in ('buy', 'sell'))
+          f = C.STATE / 'cloud_preflight.json'
+          f.write_text(json.dumps({'checked_at': C.now_ist().isoformat(),
+                                   'companies': len(quotes), 'depth_levels': 5}))
+          assert hf_sync.upload(f, 'state/cloud_preflight.json'), 'Storage write failed'
+          print('PASS: 50 Nifty companies, five-level depth, private cloud storage')
+          PY
