@@ -23,6 +23,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("login"); p.add_argument("--auto", action="store_true")
+    sub.add_parser("cloud-login", help="refresh and publish the shared daily cloud session")
     p = sub.add_parser("universe"); p.add_argument("--auto", action="store_true")
     p = sub.add_parser("historical")
     p.add_argument("--intervals", nargs="+", default=["day", "minute"], choices=list(C.CHUNK_DAYS))
@@ -50,6 +51,9 @@ def main():
         if a.cmd == "login":
             from mdc import kite_auth
             kite_auth.login_auto() if a.auto else kite_auth.login_manual()
+        elif a.cmd == "cloud-login":
+            from mdc import kite_auth
+            kite_auth.cloud_login()
         elif a.cmd == "universe":
             from mdc import kite_auth, universe
             kite, _ = kite_auth.get_kite(a.auto)
