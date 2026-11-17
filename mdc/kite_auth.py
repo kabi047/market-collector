@@ -9,6 +9,7 @@ from urllib.parse import urlparse, parse_qs
 import requests
 import pyotp
 from kiteconnect import KiteConnect
+from kiteconnect.exceptions import TokenException
 
 from . import config as C
 
@@ -93,6 +94,40 @@ def token_valid():
     if now < cutoff:
         cutoff -= dt.timedelta(days=1)
     return login_at >= cutoff
+
+
+def cloud_login():
+    """Publish one daily session shared by overlapping cloud recorders.
+
+    Reuse a working session so the second morning attempt cannot invalidate
+    an already running recorder. Only this job needs the login credentials.
+    """
+    from . import hf_sync
+    if not hf_sync.enabled():
+        raise SystemExit("Cloud login needs HF_TOKEN and HF_REPO.")
+    if not hf_sync._api().repo_info(repo_id=C.HF_REPO, repo_type="dataset").private:
+        raise SystemExit("Cloud session storage must be a private Hugging Face dataset.")
+    try:
+        hf_sync.pull_token()
+    except Exception:
+        pass  # First deployment may not have a published session yet.
+    if token_valid():
+        t = json.loads(TOKEN_FILE.read_text())
+        kite = KiteConnect(api_key=C.API_KEY, timeout=20)
+        kite.set_access_token(t["access_token"])
+        try:
+            kite.profile()
+        except TokenException:
+            login_auto()
+    else:
+        login_auto()
+    t = json.loads(TOKEN_FILE.read_text())
+    kite = KiteConnect(api_key=C.API_KEY, timeout=20)
+    kite.set_access_token(t["access_token"])
+    kite.profile()
+    if not hf_sync.push_token():
+        raise SystemExit("Cloud session upload failed; recorders cannot authenticate.")
+    print("Cloud session verified and published.")
 
 
 def get_kite(auto=False):
