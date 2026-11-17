@@ -96,7 +96,7 @@ def token_valid():
     return login_at >= cutoff
 
 
-def cloud_login():
+def cloud_login(force=False):
     """Publish one daily session shared by overlapping cloud recorders.
 
     Reuse a working session so the second morning attempt cannot invalidate
@@ -111,7 +111,7 @@ def cloud_login():
         hf_sync.pull_token()
     except Exception:
         pass  # First deployment may not have a published session yet.
-    if token_valid():
+    if not force and token_valid():
         t = json.loads(TOKEN_FILE.read_text())
         kite = KiteConnect(api_key=C.API_KEY, timeout=20)
         kite.set_access_token(t["access_token"])
