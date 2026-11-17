@@ -121,7 +121,9 @@ class Sink:
                 tbl = pa.concat_tables([pq.read_table(p) for p in parts], promote_options="permissive")
                 tbl = tbl.sort_by([("symbol", "ascending"), ("recv_ts", "ascending")])
                 out = self.dir(cat) / f"{tag or 'run'}_{stamp}.parquet"
-                pq.write_table(tbl, out, compression="zstd")
+                tmp = out.with_suffix(".parquet.tmp")
+                pq.write_table(tbl, tmp, compression="zstd")
+                tmp.replace(out)
                 for p in parts:
                     p.unlink()
                 pdir.rmdir()
@@ -238,10 +240,11 @@ def run(kite, access_token, end_at=None, tag="", upload=False):
         time.sleep(2)
         sink.flush()
         if upload:
-            try:
-                sink.ship(tag)
-            except Exception as e:
-                log.error("final ship failed: %s", e)
+            sink.ship(tag)
+            pending = [p for cat in ("index", "stock", "futures", "options", "others")
+                       for p in sink.dir(cat).rglob("*.parquet")]
+            if pending:
+                raise RuntimeError(f"{len(pending)} live files were not uploaded; retained for recovery")
         else:
             sink.compact()
         msg = f"live done {day} {tag}: {sum(sink.count.values()):,} ticks, {len(sink.seen)}/{len(tokens)} instruments"
