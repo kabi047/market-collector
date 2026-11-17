@@ -2,6 +2,7 @@
 state/
 data/
 venv/
+.venv-cloud/
 __pycache__/
 *.pyc
 .vscode/
