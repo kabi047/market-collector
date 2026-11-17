@@ -1,0 +1,36 @@
+name: daily-session
+
+on:
+  schedule:
+    - cron: '30 2 * * 1-5' # 08:00 IST
+    - cron: '45 2 * * 1-5' # 08:15 IST retry; reuse a valid session
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-zerodha-session
+  cancel-in-progress: false
+
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ZERODHA_API_KEY: ${{ secrets.ZERODHA_API_KEY }}
+      ZERODHA_API_SECRET: ${{ secrets.ZERODHA_API_SECRET }}
+      ZERODHA_USER_ID: ${{ secrets.ZERODHA_USER_ID }}
+      ZERODHA_PASSWORD: ${{ secrets.ZERODHA_PASSWORD }}
+      ZERODHA_TOTP_SECRET: ${{ secrets.ZERODHA_TOTP_SECRET }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_REPO: ${{ secrets.HF_REPO }}
+      TZ: Asia/Kolkata
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python collect.py cloud-login
