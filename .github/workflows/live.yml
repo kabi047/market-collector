@@ -58,3 +58,11 @@ jobs:
           elif [ "${{ github.event.schedule }}" = "30 8 * * 1-5" ]; then TAG=B; END=15:45
           else TAG="${{ github.event.inputs.tag }}"; END="${{ github.event.inputs.end }}"; fi
           python collect.py live --tag "$TAG" --end "$END" --upload
+      - name: Preserve data if cloud uploads fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unshipped-live-${{ github.run_id }}
+          path: data/*/zerodha_live/**/*.parquet*
+          if-no-files-found: ignore
+          retention-days: 7
