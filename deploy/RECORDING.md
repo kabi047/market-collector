@@ -8,8 +8,10 @@ not prove that a market session was captured.
 
 An Oracle Always Free Ubuntu VM can run the collector on its own clock. Account
 creation requires Oracle's card verification. Use an Always Free eligible shape
-and boot volume; do not enable a paid upgrade. An account and SSH access are
-required before this route can be deployed.
+and boot volume; do not enable a paid upgrade. The primary deployment now uses an Always Free eligible AMD micro VM in
+Hyderabad, with 1 OCPU, 1 GB RAM, 46.6 GB boot storage and 2 GB swap. The account
+was verified as Free Tier; no paid upgrade was performed. Private connection
+details are saved locally in `state/oci_deployment.json`.
 
 Copy the repository and private `.env` to the VM, then run:
 
@@ -26,7 +28,9 @@ after the VM is confirmed operational to avoid unnecessary parallel sessions.
 
 ## Free external scheduler with GitHub runners
 
-`capture.yml` accepts `morning`, `afternoon`, and `probe`. Both recording slots
+`capture.yml` is now manual-only and accepts `morning`, `afternoon`, and `probe`.
+Do not start parallel GitHub recordings while the VM is healthy. Old GitHub cron
+triggers were removed after the primary VM service was installed. Both recording slots
 log in themselves and reuse the day's shared token. Morning covers 09:00–14:00
 with setup from 08:15; afternoon covers 13:40–15:45. The 20-minute overlap covers
 the handoff. GitHub's per-job limit prevents a single runner covering the full
