@@ -43,6 +43,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
       - run: python collect.py cloud-capture --slot "$CAPTURE_SLOT"
       - name: Recover unshipped data
         if: always()
