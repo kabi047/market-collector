@@ -5,9 +5,6 @@ name: live-recorder
 #   B  starts ~14:00 IST (08:30 UTC), records until 15:45 IST
 # GitHub can start scheduled jobs late, so A starts early and waits for 09:00 itself.
 on:
-  schedule:
-    - cron: '0 3 * * 1-5'
-    - cron: '30 8 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
