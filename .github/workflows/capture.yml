@@ -1,0 +1,54 @@
+name: recoverable-capture
+
+on:
+  schedule:
+    - cron: '5,25 3 * * 1-5' # 08:35 / 08:55 IST fallback
+    - cron: '25,45 8 * * 1-5' # 13:55 / 14:15 IST fallback
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Recording session, or probe to test authentication and storage'
+        required: true
+        default: probe
+        type: choice
+        options: [probe, morning, afternoon]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: capture-${{ inputs.slot || (github.event.schedule == '25,45 8 * * 1-5' && 'afternoon' || 'morning') }}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      ZERODHA_API_KEY: ${{ secrets.ZERODHA_API_KEY }}
+      ZERODHA_API_SECRET: ${{ secrets.ZERODHA_API_SECRET }}
+      ZERODHA_USER_ID: ${{ secrets.ZERODHA_USER_ID }}
+      ZERODHA_PASSWORD: ${{ secrets.ZERODHA_PASSWORD }}
+      ZERODHA_TOTP_SECRET: ${{ secrets.ZERODHA_TOTP_SECRET }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_REPO: ${{ secrets.HF_REPO }}
+      LIVE_SHIP_MINUTES: '5'
+      TOKEN_FROM_HF: '0'
+      TZ: Asia/Kolkata
+      CAPTURE_SLOT: ${{ inputs.slot || (github.event.schedule == '25,45 8 * * 1-5' && 'afternoon' || 'morning') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python collect.py cloud-capture --slot "$CAPTURE_SLOT"
+      - name: Recover unshipped data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unshipped-${{ github.run_id }}
+          path: data/*/zerodha_live/**/*.parquet*
+          if-no-files-found: ignore
+          retention-days: 7
