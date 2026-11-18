@@ -11,6 +11,14 @@ fi
 [ -f .env ] || { echo 'Copy the private .env file to the VM first.' >&2; exit 1; }
 sudo apt-get update
 sudo apt-get install -y python3-venv python3-pip
+# Free AMD micro instances have 1 GB RAM. Swap prevents install/merge OOMs.
+if [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -lt 1500000 ] && [ ! -e /swapfile ]; then
+  sudo fallocate -l 2G /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+fi
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 mkdir -p state/logs data
