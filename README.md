@@ -78,29 +78,29 @@ scp -i key.pem -r ubuntu@<IP>:~/collector/data/* "E:\Claude Stocks\data\"
 ```
 Live ticks are roughly **0.5–1 GB per trading day**. This is an estimate, so check `du -sh data` after the first day. Pull and clear old live days before the 200 GB disk fills up.
 
-## 2b. Current cloud deployment and recovery
+## 2b. Current primary recorder: Oracle Always Free VM
 
-See [deploy/RECORDING.md](deploy/RECORDING.md) for the current setup. GitHub's
-morning job on 18 November was delivered at 16:38 IST and captured no live data.
-Scheduled events cannot guarantee market-open timing.
+The primary recorder is deployed on an Always Free eligible AMD micro VM in
+Hyderabad: 1 OCPU, 1 GB RAM, a default 46.6 GB boot disk and 2 GB disk swap.
+The Oracle account remains Free Tier. No paid upgrade was performed.
 
-The active `recoverable-capture` workflow logs in for itself, checks all 50 Nifty
-constituents, uploads every five minutes, and retries through separate fallback
-triggers. Morning and afternoon sessions overlap. Failed or empty recording
-cannot be marked complete. Completed sessions are saved privately so duplicate
-triggers skip them. The old live-recorder and daily-session workflows are now
-manual tools.
+The `market-collector` systemd service starts after a reboot. On weekdays it
+logs in automatically from 08:15 IST, records from 09:00 until 15:45, retries
+failures every minute, and uploads every five minutes to the private dataset.
+This VM records all 50 Nifty companies, Nifty index options near ATM, futures
+and the configured indices. It uses `INDEX_LISTS=nifty50` to fit the free VM.
+Stock quotes include five levels of buy/sell depth, volume, prices and timestamps.
+Missed raw depth cannot be reconstructed from historical candles.
 
-An independent scheduler requires an account and a repository-scoped Actions
-trigger token. That connection is not yet operational. An Oracle Always Free VM
-is the preferred alternative: its own clock starts a reboot-persistent service,
-which retries failures every minute. Account verification and server access are
-required before the VM can be deployed. Use `bash deploy/setup_worker.sh` on the
-VM after securely copying `.env`. Do not run parallel VM collectors.
+GitHub recording and daily-login workflows are now manual tools; their scheduled
+triggers were removed to avoid parallel recorders. The old GitHub morning run
+on 18 November was delivered at 16:38 IST and captured no live data. The VM
+uses its own clock instead of GitHub cron. Free hosting and the unofficial
+Zerodha web-login flow still do not guarantee uninterrupted capture.
 
-Run `recoverable-capture` with slot `probe` to test login, full Nifty 50 quotes,
-five-level depth and private storage. A successful probe does not prove a full
-market session was recorded. Check uploaded timestamps after a trading day.
+See [deploy/RECORDING.md](deploy/RECORDING.md) for service management and recovery.
+A successful probe verifies connectivity and storage; check uploaded timestamps
+after a trading day to verify actual session coverage.
 Download available live data with `python collect.py pull-live`.
 
 ## 3. Notes and limits
