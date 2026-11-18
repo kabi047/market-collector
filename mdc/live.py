@@ -12,6 +12,7 @@ import logging
 import threading
 import time
 import datetime as dt
+import uuid
 from collections import defaultdict
 import pandas as pd
 import pyarrow as pa
@@ -21,7 +22,7 @@ from kiteconnect import KiteTicker
 
 from . import config as C
 from . import universe as U
-from .store import safe_name
+from .store import safe_name, write_atomic
 
 log = logging.getLogger("live")
 MAX_PER_SOCKET = 3000          # Zerodha: 3000 instruments per websocket, 3 sockets per API key
@@ -104,7 +105,7 @@ class Sink:
         for cat, g in df.groupby("cat"):
             d = self.dir(cat) / "_parts"
             d.mkdir(parents=True, exist_ok=True)
-            g.drop(columns="cat").to_parquet(d / f"part_{stamp}.parquet", index=False, compression="zstd")
+            write_atomic(g.drop(columns="cat"), d / f"part_{stamp}_{uuid.uuid4().hex[:12]}.parquet")
             self.count[cat] += len(g)
         self.seen.update(df["token"].unique().tolist())
         return len(df)
@@ -120,14 +121,14 @@ class Sink:
             if parts:
                 tbl = pa.concat_tables([pq.read_table(p) for p in parts], promote_options="permissive")
                 tbl = tbl.sort_by([("symbol", "ascending"), ("recv_ts", "ascending")])
-                out = self.dir(cat) / f"{tag or 'run'}_{stamp}.parquet"
+                out = self.dir(cat) / f"{tag or 'run'}_{stamp}_{uuid.uuid4().hex[:12]}.parquet"
                 tmp = out.with_suffix(".parquet.tmp")
                 pq.write_table(tbl, tmp, compression="zstd")
                 tmp.replace(out)
                 for p in parts:
                     p.unlink()
                 pdir.rmdir()
-            for f in sorted(self.dir(cat).glob("*_[0-9][0-9][0-9][0-9].parquet")) if self.dir(cat).exists() else []:
+            for f in sorted(self.dir(cat).glob("*_[0-9][0-9][0-9][0-9]*.parquet")) if self.dir(cat).exists() else []:
                 rel = f"data/{cat}/{LIVE_DIR}/{self.day}/{f.name}"
                 if hf_sync.upload(f, rel):
                     log.info("uploaded %s (%.1f MB)", rel, f.stat().st_size / 1e6)
