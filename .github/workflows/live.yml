@@ -1,9 +1,6 @@
 name: live-recorder
 
-# Two overlapping jobs cover the session (one job may run at most 6 hours):
-#   A  starts ~08:30 IST (03:00 UTC), records until 14:15 IST
-#   B  starts ~14:00 IST (08:30 UTC), records until 15:45 IST
-# GitHub can start scheduled jobs late, so A starts early and waits for 09:00 itself.
+# Manual legacy recorder. The primary recorder runs on the Oracle VM's clock.
 on:
   workflow_dispatch:
     inputs:
