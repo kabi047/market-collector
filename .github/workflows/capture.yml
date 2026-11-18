@@ -1,9 +1,6 @@
 name: recoverable-capture
 
 on:
-  schedule:
-    - cron: '5,25 3 * * 1-5' # 08:35 / 08:55 IST fallback
-    - cron: '25,45 8 * * 1-5' # 13:55 / 14:15 IST fallback
   workflow_dispatch:
     inputs:
       slot:
