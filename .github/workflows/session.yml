@@ -1,9 +1,6 @@
 name: daily-session
 
 on:
-  schedule:
-    - cron: '30 2 * * 1-5' # 08:00 IST
-    - cron: '45 2 * * 1-5' # 08:15 IST retry; reuse a valid session
   workflow_dispatch:
 
 permissions:
