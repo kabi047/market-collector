@@ -78,45 +78,30 @@ scp -i key.pem -r ubuntu@<IP>:~/collector/data/* "E:\Claude Stocks\data\"
 ```
 Live ticks are roughly **0.5–1 GB per trading day**. This is an estimate, so check `du -sh data` after the first day. Pull and clear old live days before the 200 GB disk fills up.
 
-## 2b. No credit card? Free cloud via GitHub Actions (what we use)
-Repo: github.com/kabi047/market-collector (code only; credentials are in GitHub Secrets, data goes to a private Hugging Face dataset).
+## 2b. Current cloud deployment and recovery
 
-**Unattended cloud collection:** the `daily-session` workflow logs in at 08:00 IST
-and retries at 08:15 on weekdays. Both recording jobs share this daily session.
-Repository Actions secrets must contain `ZERODHA_API_KEY`, `ZERODHA_API_SECRET`,
-`ZERODHA_USER_ID`, `ZERODHA_PASSWORD`, `ZERODHA_TOTP_SECRET`, `HF_TOKEN`, and `HF_REPO`.
-The Hugging Face dataset must be private. No laptop or daily manual login is needed
-while automatic login works. This uses an unofficial Kite web-login flow and can
-break if Zerodha changes it. Keep the Kite market-data subscription active.
+See [deploy/RECORDING.md](deploy/RECORDING.md) for the current setup. GitHub's
+morning job on 18 November was delivered at 16:38 IST and captured no live data.
+Scheduled events cannot guarantee market-open timing.
 
-Run `daily-session` manually to test a **fresh login**, all 50 Nifty company quotes,
-five levels of depth, and a write to private storage. Do not run this manual test
-while a recorder is active, because it deliberately replaces the daily session.
+The active `recoverable-capture` workflow logs in for itself, checks all 50 Nifty
+constituents, uploads every five minutes, and retries through separate fallback
+triggers. Morning and afternoon sessions overlap. Failed or empty recording
+cannot be marked complete. Completed sessions are saved privately so duplicate
+triggers skip them. The old live-recorder and daily-session workflows are now
+manual tools.
 
-**Manual fallback**, when automatic cloud login is unavailable: on your PC run
-```
-venv\Scripts\python collect.py login
-```
-It logs you in and sends the day's access token to the cloud automatically. You can then switch your PC off.
+An independent scheduler requires an account and a repository-scoped Actions
+trigger token. That connection is not yet operational. An Oracle Always Free VM
+is the preferred alternative: its own clock starts a reboot-persistent service,
+which retries failures every minute. Account verification and server access are
+required before the VM can be deployed. Use `bash deploy/setup_worker.sh` on the
+VM after securely copying `.env`. Do not run parallel VM collectors.
 
-Then GitHub does the rest on its own servers:
-- **~08:30:** job A starts, waits for 09:00 and records until 14:15.
-- **~14:00:** job B starts and records until 15:45.
-- Every 30 minutes each job uploads a chunk to the private dataset, so a crash loses at most 30 minutes.
-- On a market holiday it notices there are no ticks and stops.
-
-**Get the data on your PC later (needs internet):**
-```
-venv\Scripts\python collect.py pull-live
-venv\Scripts\python collect.py eod        # evening: minute candles + OI for today's futures/options contracts
-```
-Data lands in `data/<stock|index|futures|options>/zerodha_live/<date>/` as chunk files (`A_0930.parquet` etc). The A and B jobs overlap by about 15 minutes, so drop duplicate rows by (symbol, exch_ts, volume) when you load.
-
-**Manual test any time:** GitHub -> Actions -> live-recorder -> Run workflow -> mode `check`.
-If morning authentication fails, recorders stop with "token is stale". Check the
-`daily-session` run in GitHub Actions. Failed data uploads fail the recording job;
-remaining files are preserved as a GitHub artifact for seven days when possible.
-GitHub scheduled runs can be delayed, so this setup cannot guarantee gap-free capture.
+Run `recoverable-capture` with slot `probe` to test login, full Nifty 50 quotes,
+five-level depth and private storage. A successful probe does not prove a full
+market session was recorded. Check uploaded timestamps after a trading day.
+Download available live data with `python collect.py pull-live`.
 
 ## 3. Notes and limits
 - **Live feed rate:** Zerodha's websocket sends snapshots, up to about 1 per second per instrument when something changes. It is not every exchange trade. This is the fastest data Kite Connect offers. Depth is 5 levels.
