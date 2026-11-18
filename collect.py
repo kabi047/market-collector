@@ -25,6 +25,8 @@ def main():
     p = sub.add_parser("login"); p.add_argument("--auto", action="store_true")
     p = sub.add_parser("cloud-login", help="refresh and publish the shared daily cloud session")
     p.add_argument("--force", action="store_true", help="test a fresh login; do not use while recording")
+    p = sub.add_parser("cloud-capture", help="restartable cloud recording with its own login")
+    p.add_argument("--slot", choices=["morning", "afternoon", "server", "probe"], required=True)
     p = sub.add_parser("universe"); p.add_argument("--auto", action="store_true")
     p = sub.add_parser("historical")
     p.add_argument("--intervals", nargs="+", default=["day", "minute"], choices=list(C.CHUNK_DAYS))
@@ -55,6 +57,9 @@ def main():
         elif a.cmd == "cloud-login":
             from mdc import kite_auth
             kite_auth.cloud_login(force=a.force)
+        elif a.cmd == "cloud-capture":
+            from mdc import cloud_capture
+            cloud_capture.run(a.slot)
         elif a.cmd == "universe":
             from mdc import kite_auth, universe
             kite, _ = kite_auth.get_kite(a.auto)
