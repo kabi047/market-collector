@@ -30,7 +30,7 @@ TOKEN_FROM_HF = os.getenv("TOKEN_FROM_HF", "0") == "1"      # cloud runner: take
 
 # --- universe
 EXTRA_SYMBOLS = [s.strip().upper() for s in os.getenv("EXTRA_SYMBOLS", "").split(",") if s.strip()]
-INDEX_LISTS = ["nifty50", "niftynext50", "niftymidcap50"]    # Nifty 100 + Midcap 50 = top ~150 by free-float mcap
+INDEX_LISTS = [s.strip() for s in os.getenv("INDEX_LISTS", "nifty50,niftynext50,niftymidcap50").split(",") if s.strip()]
 INDICES = [  # (exchange, tradingsymbol as in the Kite instrument dump)
     ("NSE", "NIFTY 50"), ("NSE", "NIFTY BANK"), ("NSE", "NIFTY NEXT 50"), ("NSE", "NIFTY 100"),
     ("NSE", "NIFTY MIDCAP 50"), ("NSE", "NIFTY MIDCAP 100"), ("NSE", "NIFTY 500"), ("NSE", "NIFTY FIN SERVICE"),
