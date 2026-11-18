@@ -166,6 +166,8 @@ def run(kite, access_token, end_at=None, tag="", upload=False):
         raise SystemExit("Weekend - nothing to record.")
     meta = subscriptions(kite)
     tokens = list(meta)
+    if not tokens or len(tokens) > 3 * MAX_PER_SOCKET:
+        raise RuntimeError(f"Unsupported subscription count: {len(tokens)}")
     subs_file = C.STATE / f"live_subscriptions_{day}.json"
     subs_file.write_text(json.dumps({str(k): v for k, v in meta.items()}))
     if upload:
@@ -214,9 +216,9 @@ def run(kite, access_token, end_at=None, tag="", upload=False):
             sink.flush()
             t = C.now_ist()
             if t.time() >= dt.time(9, 20) and time.time() - started > 180 and sum(sink.count.values()) == 0:
-                log.warning("no ticks for 3 minutes after 09:20 - market holiday or feed problem. Stopping.")
-                C.notify("live: no ticks at all (holiday? token?) - stopped")
-                break
+                raise RuntimeError("No ticks after 09:20; holiday or feed failure. Retry required.")
+            if dt.time(9, 20) <= t.time() <= dt.time(15, 30) and sink.last_tick and time.time() - sink.last_tick > 300:
+                raise RuntimeError("Live feed stalled for five minutes; restart required")
             if dt.time(9, 15) <= t.time() <= dt.time(15, 30) and time.time() - sink.last_tick > 120 and not warned:
                 C.notify("live: no ticks for 2 minutes during market hours")
                 warned = True
@@ -247,6 +249,8 @@ def run(kite, access_token, end_at=None, tag="", upload=False):
                 raise RuntimeError(f"{len(pending)} live files were not uploaded; retained for recovery")
         else:
             sink.compact()
+        if not sum(sink.count.values()):
+            raise RuntimeError("Recording ended without any ticks; session is incomplete")
         msg = f"live done {day} {tag}: {sum(sink.count.values()):,} ticks, {len(sink.seen)}/{len(tokens)} instruments"
         log.info(msg)
         C.notify(msg)
